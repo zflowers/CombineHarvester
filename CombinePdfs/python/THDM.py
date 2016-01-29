@@ -1,4 +1,5 @@
 from HiggsAnalysis.CombinedLimit.PhysicsModel import *
+import CombineHarvester.CombineTools.plotting as plot
 import os
 import ROOT
 import math
@@ -18,6 +19,12 @@ class THDMHiggsModel(PhysicsModel):
             'br_Hhh'        : 'br_Hhh',
             'br_AZh'        : 'br_AZh'
         }
+        self.h_dict[1] = {
+            'mA'  : 'mA',
+            'mh'  : 'mh',
+            'br_Hhh'        : 'br_Hhh',
+            'br_AZh'        : 'br_AZh'
+        }
         for X in ['h', 'H', 'A']:
             self.h_dict[0].update({
                 'xs_gg%s'%X     : 'xs_gg_%s'%X,
@@ -25,12 +32,25 @@ class THDMHiggsModel(PhysicsModel):
                 'br_%stautau'%X : 'br_%stautau'%X,
                 'br_%sbb'%X     : 'br_%sbb'%X,
                 })
+            self.h_dict[1].update({
+                'xs_gg%s'%X     : 'xs_gg%s'%X,
+                'xs_bb%s'%X     : 'xs_bb%s'%X,
+                })
+        self.h_dict[1].update({
+            'br_htautau' : 'br_htautau',
+            'br_hbb'     : 'br_hbb',
+            'br_Htautau' : 'br_H_tautau',
+            'br_Hbb'     : 'br_Hbb',
+            'br_Atautau' : 'br_A_tautau',
+            'br_Abb'     : 'br_Abb',
+            })
         # Define the known production and decay processes
         # These are strings we will look for in the process names to
         # determine the correct normalisation scaling
         self.ERAS = ['7TeV', '8TeV', '13TeV', '14TeV']
         self.PROC_SETS = []
         self.SMSignal  = "SM125" #SM signal
+        self.mk_plots = False
 
     def setPhysicsOptions(self,physOptions):
         for po in physOptions:
@@ -45,6 +65,8 @@ class THDMHiggsModel(PhysicsModel):
                         raise RuntimeError, 'Model file argument %s should be in the format ERA,FILE,VERSION' % cfg
                     self.modelFiles[cfgSplit[0]] = (cfgSplit[1], int(cfgSplit[2]))
                 pprint.pprint(self.modelFiles)
+            if po.startswith("makePlots"):
+                self.mk_plots = True
 
     def setModelBuilder(self, modelBuilder):
         """We're not supposed to overload this method, but we have to because 
@@ -59,6 +81,18 @@ class THDMHiggsModel(PhysicsModel):
     def doHistFunc(self, name, hist, varlist, interpolate=0):
         "method to conveniently create a RooHistFunc from a TH1/TH2 input"
         print 'Doing histFunc %s...' % name
+        if self.mk_plots:
+            canv = ROOT.TCanvas(name, name)
+            pads = plot.OnePad()
+            hist.GetXaxis().SetTitle(varlist[0].GetTitle())
+            hist.GetYaxis().SetTitle(varlist[1].GetTitle())
+            hist.Draw('COLZ')
+            plot.DrawTitle(pads[0], name, 3)
+            canv.Print('model_'+name+'.pdf')
+            canv.Print('model_'+name+'.png')
+            pads[0].SetLogz(True)
+            canv.Print('model_'+name+'_log.pdf')
+            canv.Print('model_'+name+'_log.png')
         dh = ROOT.RooDataHist('dh_%s'%name, 'dh_%s'%name, ROOT.RooArgList(*varlist), ROOT.RooFit.Import(hist))
         hfunc = ROOT.RooHistFunc(name, name, ROOT.RooArgSet(*varlist), dh)
         hfunc.setInterpolationOrder(interpolate)
