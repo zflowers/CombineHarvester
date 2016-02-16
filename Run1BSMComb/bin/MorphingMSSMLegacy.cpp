@@ -46,6 +46,8 @@ int main(int argc, char** argv) {
   TH1::AddDirectory(false);
   ch::CombineHarvester cb;
 
+  VString SM_procs = {"ggH_SM125", "qqH_SM125", "VH_SM125"};
+
   Categories mt_cats = {
       make_pair(8, "muTau_nobtag"),
       make_pair(9, "muTau_btag")};
@@ -55,11 +57,13 @@ int main(int argc, char** argv) {
 
   cout << "Adding observations...";
   cb.AddObservations({"*"}, {"htt"}, {"8TeV"}, {"mt"}, mt_cats);
+  if(SM125==string("signal_SM125")) cb.AddProcesses({"*"}, {"htt"}, {"8TeV"}, {"mt"}, SM_procs, mt_cats, true);
   cout << " done\n";
 
   cout << "Adding background processes...";
   cb.AddProcesses({"*"}, {"htt"}, {"8TeV"}, {"mt"},
                   {"ZTT", "W", "QCD", "ZL", "ZJ", "TT", "VV"}, mt_cats, false);
+  if(SM125==string("bkg_SM125")) cb.AddProcesses({"*"}, {"htt"}, {"8TeV"}, {"mt"}, SM_procs, mt_cats, false);
   cout << " done\n";
 
   cout << "Adding signal processes...";
@@ -94,7 +98,7 @@ int main(int argc, char** argv) {
   cout << "Extracting histograms from input root files...";
   cb.cp().era({"8TeV"}).backgrounds().ExtractShapes(
       file, "$CHANNEL/$PROCESS", "$CHANNEL/$PROCESS_$SYSTEMATIC");
-
+  if(SM125==string("signal_SM125")) cb.cp().era({"8TeV"}).process(SM_procs).ExtractShapes(file, "$BIN/$PROCESS", "$BIN/$PROCESS_$SYSTEMATIC");
   // We have to map each Higgs signal process to the same histogram, i.e:
   // {ggh, ggH, ggA} --> ggH
   // {bbh, bbH, bbA} --> bbH
@@ -142,7 +146,7 @@ int main(int argc, char** argv) {
   if (do_morphing) {
     auto bins = cb.bin_set();
     for (auto b : bins) {
-      auto procs = cb.cp().bin({b}).signals().process_set();
+      auto procs = cb.cp().bin({b}).process(ch::JoinStr({signal_types["ggH"], signal_types["bbH"]})).process_set();
       for (auto p : procs) {
         ch::BuildRooMorphing(ws, cb, b, p, *(mass_var[p]),
                              "norm", true, true, false, &demo);
