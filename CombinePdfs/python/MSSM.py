@@ -423,6 +423,9 @@ class MSSMHiggsModel(PhysicsModel):
                     terms += [self.sigNorms[1]]
                 else:
                     terms = [self.sigNorms[0]]
+                    if '%s_%s'% (P, D) in self.DC.isSignal:
+                        if self.DC.isSignal['%s_%s'% (P, D)]:
+                            terms += ['r']
                 # Now scan terms and add theory uncerts
                 extra = []
                 for term in terms:
