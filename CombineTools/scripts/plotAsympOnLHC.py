@@ -56,14 +56,13 @@ args = parser.parse_args()
 AsympOnLHC = not args.no_asymp
 if AsympOnLHC:
   # Insert output from combine here #<----------------------------------------------
-  # The value for x needs to be the value for x (or other POI) where it says 'NLL at global minimum of data'
-  # The other 5 values need to be taken from where it says 'At x = 1.000000:'
-  x = 0.0950627
-  qmu = 8.61385
-  qA = 10.65273
-  clsb = 0.00167
-  clb = 0.62889
-  cls = 0.00265
+  # These 5 values need to be taken from where it says 'At x = 1.000000:'
+  qmu = 0.41789
+  qA = 0.48486
+  clsb = 0.259
+  clb = 0.51989
+  cls = 0.49818
+
   # TODO: Somehow write numbers to json, so they can be read more easily?
 
 results = []
@@ -158,15 +157,12 @@ if AsympOnLHC:
   # But the maximum plot range also depends on how high the asymptotic distribution is.
   # It's enough to go through this iteratively twice.
   for i in range (2):
-    test1 = ROOT.TF1("f1","[0]/(2*sqrt(2*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",qA,max_plot_range*9999)
-    test2 = ROOT.TF1("f2","[0]/(sqrt(8*TMath::Pi()*[3]))*(TMath::Exp(-1/(8*[3])*(x-(([1]*[1]-2*[4]*[1])/([2]*[2])))*(x-(([1]*[1]-2*[4]*[1])/([2]*[2])))))",qA,max_plot_range*9999)
+    test1 = ROOT.TF1("f1","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",qA,max_plot_range*9999)
+    test2 = ROOT.TF1("f2","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-([1]*[1]))*(x-([1]*[1]))))",qA,max_plot_range*9999)
     test1.SetParameter(0,TotalToysSB)
     test1.FixParameter(1,qA)
     test2.SetParameter(0,TotalToysB)
-    test2.SetParameter(1,x)
-    test2.SetParameter(2,x/math.sqrt(qA))
-    test2.FixParameter(3,qA)
-    test2.SetParameter(4,0)
+    test2.SetParameter(1,qA)
     mult1 = 1.0
     while test1.Eval(mult1*qA) > 0.8 :
       mult1 +=0.1
@@ -264,17 +260,14 @@ pads[1].GetFrame().Draw()
 pads[1].RedrawAxis()
 if AsympOnLHC:
 
-  f1 = ROOT.TF1("f1","(x<=[1])*[0]/(2*sqrt(2*TMath::Pi()*x))*(TMath::Exp(-1/2*x)) + (x>[1])*[0]/(2*sqrt(2*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",0,max_plot_range)
+  f1 = ROOT.TF1("f1","(x<=[1])*[0]/(sqrt(8*TMath::Pi()*x))*(TMath::Exp(-1/2*x)) + (x>[1])*[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",0,max_plot_range)
   f1.SetParameter(0,TotalToysSB)
   f1.FixParameter(1,qA)
 
-  f2 = ROOT.TF1("f2","(x<=[3])*[0]/(2*sqrt(2*TMath::Pi()*x))*(TMath::Exp(-1/2*(sqrt(x)-(([1]-[4])/[2]))*(sqrt(x)-(([1]-[4])/[2])))) + (x>[3])*[0]/(sqrt(8*TMath::Pi()*[3]))*(TMath::Exp(-1/(8*[3])*(x-(([1]*[1]-2*[4]*[1])/([2]*[2])))*(x-(([1]*[1]-2*[4]*[1])/([2]*[2])))))",0,max_plot_range)
+  f2 = ROOT.TF1("f2","(x<=[1])*[0]/(sqrt(8*TMath::Pi()*x))*(TMath::Exp(-1/2*(sqrt(x)-[1])*(sqrt(x)-[1]))) + (x>[1])*[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-([1]*[1]))*(x-([1]*[1]))))",0,max_plot_range)
 
   f2.SetParameter(0,TotalToysB)
-  f2.SetParameter(1,x)
-  f2.SetParameter(2,x/math.sqrt(qA))
-  f2.FixParameter(3,qA)
-  f2.SetParameter(4,0)
+  f2.FixParameter(1,qA)
 
   #if qmu==0: qmu=0.0000000000001
   if qmu==0:
