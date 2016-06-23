@@ -158,7 +158,7 @@ if AsympOnLHC:
   # It's enough to go through this iteratively twice.
   for i in range (2):
     test1 = ROOT.TF1("f1","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",qA,max_plot_range*9999)
-    test2 = ROOT.TF1("f2","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-([1]*[1]))*(x-([1]*[1]))))",qA,max_plot_range*9999)
+    test2 = ROOT.TF1("f2","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-[1])*(x-[1])))",qA,max_plot_range*9999)
     test1.SetParameter(0,TotalToysSB)
     test1.FixParameter(1,qA)
     test2.SetParameter(0,TotalToysB)
@@ -264,7 +264,7 @@ if AsympOnLHC:
   f1.SetParameter(0,TotalToysSB)
   f1.FixParameter(1,qA)
 
-  f2 = ROOT.TF1("f2","(x<=[1])*[0]/(sqrt(8*TMath::Pi()*x))*(TMath::Exp(-1/2*(sqrt(x)-[1])*(sqrt(x)-[1]))) + (x>[1])*[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-([1]*[1]))*(x-([1]*[1]))))",0,max_plot_range)
+  f2 = ROOT.TF1("f2","(x<=[1])*[0]/(sqrt(8*TMath::Pi()*x))*(TMath::Exp(-1/2*(sqrt(x)-sqrt([1]))*(sqrt(x)-sqrt([1])))) + (x>[1])*[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-[1])*(x-[1])))",0,max_plot_range)
 
   f2.SetParameter(0,TotalToysB)
   f2.FixParameter(1,qA)
