@@ -5,6 +5,7 @@ import os
 from math import floor
 import CombineHarvester.CombineTools.plotting as plot
 import argparse
+import sys
 
 def DrawCMSLogo(pad, cmsText, extraText):
     pad.cd()
@@ -48,7 +49,8 @@ parser.add_argument('--bin_number', '-bins', help='Set the number of bins', defa
 parser.add_argument('--expected', '-exp', help='Fix q_obs to a different value so CLb = 0.5', action='store_true')
 parser.add_argument('--logx', '-logx', help='Draw x-axis in log scale', action='store_true')
 parser.add_argument('--no_asymp', help='Show only toy distribution', action='store_true')
-parser.add_argument('--show_diff', help='Make a plot of the difference between Asymptotic and LHC toy based test statistic', action='store_true')
+parser.add_argument('--fit_qa', help='Fit qA to the toy distribution of the null hypothesis', action='store_true')
+parser.add_argument('--diff', help='Make a plot of the difference between Asymptotic and LHC toy based test statistic', action='store_true')
 parser.add_argument('--display', '-d', help='Display plots right when they are done', action='store_true')
 args = parser.parse_args()
 
@@ -57,11 +59,12 @@ AsympOnLHC = not args.no_asymp
 if AsympOnLHC:
   # Insert output from combine here #<----------------------------------------------
   # These 5 values need to be taken from where it says 'At x = 1.000000:'
-  qmu = 0.41789
-  qA = 0.48486
-  clsb = 0.259
-  clb = 0.51989
-  cls = 0.49818
+  qmu = 0.78743
+  qA = 0.63609
+  clsb = 0.18608
+  clb = 0.46221
+  cls = 0.40259
+
 
   # TODO: Somehow write numbers to json, so they can be read more easily?
 
@@ -116,6 +119,7 @@ if maval != '' and tanbval != '':
   name += 'mA'+maval+'_'+'tanb'+tanbval
 if name == '': name = 'plot'
 if args.expected: name += '_exp'
+if args.fit_qa: name += '_fit'
 
 null_vals = [toy * 2. for toy in result.GetNullDistribution().GetSamplingDistribution()]
 alt_vals = [toy * 2. for toy in result.GetAltDistribution().GetSamplingDistribution()]
@@ -156,11 +160,11 @@ if AsympOnLHC:
   # The rate by how much the asymptotic distribution needs to be scaled depends on the bin width, so the maximum plot range.
   # But the maximum plot range also depends on how high the asymptotic distribution is.
   # It's enough to go through this iteratively twice.
-  for i in range (2):
+  for i in range(2):
     test1 = ROOT.TF1("f1","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",qA,max_plot_range*9999)
     test2 = ROOT.TF1("f2","[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-[1])*(x-[1])))",qA,max_plot_range*9999)
     test1.SetParameter(0,TotalToysSB)
-    test1.FixParameter(1,qA)
+    test1.SetParameter(1,qA)
     test2.SetParameter(0,TotalToysB)
     test2.SetParameter(1,qA)
     mult1 = 1.0
@@ -201,9 +205,15 @@ if args.expected:
 else:
   leg.AddEntry(obs, 'Observed', 'L')
 pads[0].cd()
-pt_l1 = ROOT.TPaveText(0.33, 0.72, 0.43, 0.78, 'NDCNB')
+if args.fit_qa:
+  pt_l1 = ROOT.TPaveText(0.33, 0.66, 0.43, 0.78, 'NDCNB')
+else:
+  pt_l1 = ROOT.TPaveText(0.33, 0.72, 0.43, 0.78, 'NDCNB')
 pt_l1.AddText('Model:')
 pt_l1.AddText('Toys:')
+if args.fit_qa:
+  pt_l1.AddText('Old qA:')
+  pt_l1.AddText('Fit qA:')
 plot.Set(pt_l1, TextAlign=11, TextFont=62, BorderSize=0)
 pt_l1.Draw()
 pt_la = ROOT.TPaveText(0.20, 0.80, 0.30, 0.95, 'NDCNB')
@@ -211,7 +221,7 @@ pt_la.AddText('')
 pt_la.AddText('CLs+b:')
 pt_la.AddText('CLb:')
 pt_la.AddText('CLs:')
-if args.expected:
+if args.expected and AsympOnLHC:
   pt_la.AddText('q_exp:')
 else:
   pt_la.AddText('q_obs:')
@@ -230,11 +240,15 @@ if AsympOnLHC:
   pt_t2.Draw()
   plot.Set(pt_t3, TextAlign=11, TextFont=62, BorderSize=0)
   pt_t3.Draw()
-pt_r1 = ROOT.TPaveText(0.41, 0.72, 0.71, 0.78, 'NDCNB')
+if args.fit_qa and AsympOnLHC:
+  pt_r1 = ROOT.TPaveText(0.41, 0.66, 0.71, 0.78, 'NDCNB')
+else:
+  pt_r1 = ROOT.TPaveText(0.41, 0.72, 0.71, 0.78, 'NDCNB')
 pt_r1.AddText('%s [%s = %s, %s = %s]' % ('m_{h}^{mod+}', 'mA', maval, 'tanb', tanbval))
 pt_r1.AddText('%i (%s) + %i (%s)' % (result.GetNullDistribution().GetSize(), null_label, result.GetAltDistribution().GetSize(), alt_label))
-plot.Set(pt_r1, TextAlign=11, TextFont=42, BorderSize=0)
-pt_r1.Draw()
+if not args.fit_qa or not AsympOnLHC:
+  plot.Set(pt_r1, TextAlign=11, TextFont=42, BorderSize=0)
+  pt_r1.Draw()
 pt_b1 = ROOT.TPaveText(0.35, 0.80, 0.54, 0.92, 'NDCNB')
 pt_b1.AddText('%.3f #pm %.3f' % (result.CLsplusb(), result.CLsplusbError()))
 pt_b1.AddText('%.3f #pm %.3f' % (result.CLb(), result.CLbError()))
@@ -255,20 +269,33 @@ if AsympOnLHC:
   plot.Set(pt_b4, TextAlign=11, TextFont=42, BorderSize=0)
   pt_b4.Draw()
 DrawCMSLogo(pads[0], 'CMS', "(private work)")
-pads[1].cd()
-pads[1].GetFrame().Draw()
-pads[1].RedrawAxis()
+
 if AsympOnLHC:
 
   f1 = ROOT.TF1("f1","(x<=[1])*[0]/(sqrt(8*TMath::Pi()*x))*(TMath::Exp(-1/2*x)) + (x>[1])*[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x+[1])*(x+[1])))",0,max_plot_range)
-  f1.SetParameter(0,TotalToysSB)
-  f1.FixParameter(1,qA)
+  f1.FixParameter(0,TotalToysSB)
+  f1.SetParameter(1,qA)
 
   f2 = ROOT.TF1("f2","(x<=[1])*[0]/(sqrt(8*TMath::Pi()*x))*(TMath::Exp(-1/2*(sqrt(x)-sqrt([1]))*(sqrt(x)-sqrt([1])))) + (x>[1])*[0]/(sqrt(8*TMath::Pi()*[1]))*(TMath::Exp(-1/(8*[1])*(x-[1])*(x-[1])))",0,max_plot_range)
 
-  f2.SetParameter(0,TotalToysB)
-  f2.FixParameter(1,qA)
+  f2.FixParameter(0,TotalToysB)
+  f2.SetParameter(1,qA)
 
+  if args.fit_qa:
+    pt_r1.AddText('%.5f' % (qA))
+    hist_null.Fit(f2, "QR0")
+    qA = f2.GetParameter(1)
+    f1.SetParameter(1,qA)
+    pt_r1.AddText('%.5f' % (qA))
+    plot.Set(pt_r1, TextAlign=11, TextFont=42, BorderSize=0)
+    pt_r1.Draw()
+    if args.expected: qmu = qA
+
+pads[1].cd()
+pads[1].GetFrame().Draw()
+pads[1].RedrawAxis()
+
+if AsympOnLHC:
   #if qmu==0: qmu=0.0000000000001
   if qmu==0:
     asy_sb=0.5
@@ -308,7 +335,7 @@ leg.Draw()
 canv.SaveAs("AsympOnLHC_"+name+".png")
 if args.display: os.system("display AsympOnLHC_"+name+".png &")
 
-if args.show_diff and AsympOnLHC:
+if args.diff and AsympOnLHC:
   sbdiff = ROOT.TH1F('sbdiff', 'sbdiff', args.bin_number, min_plot_range, max_plot_range)
   bdiff = ROOT.TH1F('bdiff', 'bdiff', args.bin_number, min_plot_range, max_plot_range)
   sbdiffone = f1.Eval(hist_alt.GetBinCenter(1))-hist_alt.GetBinContent(1)
