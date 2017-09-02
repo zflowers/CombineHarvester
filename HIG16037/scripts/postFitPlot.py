@@ -360,12 +360,15 @@ for hists in bkg_histos:
 c2 = ROOT.TCanvas()
 c2.cd()
 if args.ratio:
-  pads=plot.TwoPadSplit(0.29,0.01,0.01)
+  pads=plot.ThreePadSplit(0.5,0.29,0.01,0.01)
 else:
   pads=plot.OnePad()
 pads[0].cd()
-if(log_y): pads[0].SetLogy(1)
-if(log_x): pads[0].SetLogx(1)
+#if(log_y): pads[0].SetLogy(1)
+pads[2].SetLogy(1)
+if(log_x):
+  pads[0].SetLogx(1)
+  pads[2].SetLogx(1)
 if custom_x_range:
     if x_axis_max > bkghist.GetXaxis().GetXmax(): x_axis_max = bkghist.GetXaxis().GetXmax()
 if args.ratio and not fractions:
@@ -405,7 +408,48 @@ if not custom_y_range: axish[0].SetMaximum(extra_pad*bkghist.GetMaximum())
 if not custom_y_range: 
   if(log_y): axish[0].SetMinimum(0.0009)
   else: axish[0].SetMinimum(0)
+  
+axish[0].SetTickLength(0)
+axistransit=1.0
+axish[0].SetMinimum(axistransit)
+axish.append(axish[0].Clone())
+
+
+axish[2].GetYaxis().SetRangeUser(y_axis_min, axistransit)
+axish[2].GetYaxis().SetTitle("")
+  
 axish[0].Draw()
+
+#Draw uncertainty band
+bkghist.SetFillColor(plot.CreateTransparentColor(12,0.4))
+bkghist.SetLineColor(0)
+bkghist.SetMarkerSize(0)
+
+
+stack.Draw("histsame")
+#Don't draw total bkgs/signal if plotting bkg fractions
+if not fractions:
+  bkghist.Draw("e2same")
+  #Add signal, either model dependent or independent
+  '''
+  if not args.no_signal:
+    if model_dep is True: 
+      sighist.SetLineColor(ROOT.kGreen+3)
+      sighist.SetLineWidth(3)
+      sighist.Draw("histsame")
+    else: 
+      sighist_ggH.SetLineColor(ROOT.kBlue)
+      sighist_bbH.SetLineColor(ROOT.kBlue + 3)
+      sighist_ggH.SetLineWidth(3)
+      sighist_bbH.SetLineWidth(3)
+      sighist_ggH.Draw("histsame")
+      sighist_bbH.Draw("histsame")
+  '''
+#if not soverb_plot and not fractions: blind_datahist.DrawCopy("e0psame")
+axish[0].Draw("axissame")
+
+pads[2].cd()
+axish[2].Draw("axis")
 
 #Draw uncertainty band
 bkghist.SetFillColor(plot.CreateTransparentColor(12,0.4))
@@ -431,7 +475,9 @@ if not fractions:
       sighist_ggH.Draw("histsame")
       sighist_bbH.Draw("histsame")
 if not soverb_plot and not fractions: blind_datahist.DrawCopy("e0psame")
-axish[0].Draw("axissame")
+axish[2].Draw("axissame")
+pads[0].cd()
+if not soverb_plot and not fractions: blind_datahist.DrawCopy("e0psame")
 
 #Setup legend
 legend = plot.PositionedLegend(0.30,0.30,3,0.03)
