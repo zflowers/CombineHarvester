@@ -19,6 +19,22 @@ cd %(PWD)s
     'PWD': os.environ['PWD']
 })
 
+JOB_PREFIX_CONNECT = """#!/bin/bash
+ulimit -s unlimited
+set -e
+export SCRAM_ARCH=%(SCRAM_ARCH)s
+source /cvmfs/cms.cern.ch/cmsset_default.sh
+wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/cmssw_setup_connect.sh 
+source cmssw_setup_connect.sh
+wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2
+cmssw_setup sandbox-CMSSW_10_6_5-6403d6f.tar.bz2
+mkdir -p cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
+cp %(FILE)s cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
+cd cmssw-tmp/CMSSW_10_6_5/src/
+eval `scramv1 runtime -sh`
+
+"""
+
 CONDOR_TEMPLATE = """executable = %(EXE)s
 arguments = $(ProcId)
 output                = %(TASK)s.$(ClusterId).$(ProcId).out
@@ -30,6 +46,25 @@ on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)
 
 # Periodically retry the jobs every 10 minutes, up to a maximum of 5 retries.
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
+
+%(EXTRA)s
+queue %(NUMBER)s
+
+"""
+
+CONNECT_TEMPLATE = """executable = %(EXE)s
+universe = vanilla
+use_x509userproxy = true
+getenv = True 
+arguments = $(ProcId)
+output                = %(TASK)s.$(ClusterId).$(ProcId).out
+error                 = %(TASK)s.$(ClusterId).$(ProcId).err
+log                   = %(TASK)s.$(ClusterId).log
+
+# Periodically retry the jobs every 10 minutes, up to a maximum of 5 retries.
+periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
+
+transfer_input_files = %(DATACARD)s,%(FILE)s
 
 %(EXTRA)s
 queue %(NUMBER)s
@@ -99,6 +134,7 @@ class CombineToolBase:
         self.job_mode = 'interactive'
         self.job_dir = ""
         self.prefix_file = ''
+        self.input_file = ''
         self.parallel = 1
         self.merge = 1
         self.task_name = 'combine_task'
@@ -111,11 +147,13 @@ class CombineToolBase:
 
     def attach_job_args(self, group):
         group.add_argument('--job-mode', default=self.job_mode, choices=[
-                           'interactive', 'script', 'lxbatch', 'SGE', 'slurm', 'condor', 'crab3'], help='Task execution mode')
+                           'interactive', 'script', 'lxbatch', 'SGE', 'slurm', 'condor', 'crab3', 'connect'], help='Task execution mode')
         group.add_argument('--job-dir', default=self.job_dir,
                            help='Path to directory containing job scripts and logs')
         group.add_argument('--prefix-file', default=self.prefix_file,
                            help='Path to file containing job prefix')
+        group.add_argument('--input-file', default=self.input_file,
+                           help='Path to input file that datacards reference (only needed with --job-mode connect)')
         group.add_argument('--task-name', default=self.task_name,
                            help='Task name, used for job script and log filenames for batch system tasks')
         group.add_argument('--parallel', type=int, default=self.parallel,
@@ -150,6 +188,7 @@ class CombineToolBase:
         self.job_mode = self.args.job_mode
         self.job_dir = self.args.job_dir
         self.prefix_file = self.args.prefix_file
+        self.input_file = self.args.input_file
         self.task_name = self.args.task_name
         self.parallel = self.args.parallel
         self.merge = self.args.merge
@@ -285,6 +324,47 @@ class CombineToolBase:
               'TASK': self.task_name,
               'EXTRA': self.bopts.decode('string_escape'),
               'NUMBER': jobs
+            }
+            subfile.write(condor_settings)
+            subfile.close()
+            run_command(self.dry_run, 'condor_submit %s' % (subfilename))
+        if self.job_mode == 'connect':
+            outscriptname = 'condor_%s.sh' % self.task_name
+            subfilename = 'condor_%s.sub' % self.task_name
+            for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
+                for line in self.job_queue[j:j + self.merge]:
+                    newline = self.pre_cmd + line
+            datacard_file = str(self.extract_workspace_arg(newline.split())) 
+            print '>> condor job script will be %s' % outscriptname
+            outscript = open(outscriptname, "w")
+            connect_job_prefix = JOB_PREFIX_CONNECT % {
+              'CMSSW_BASE': os.environ['CMSSW_BASE'],
+              'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
+              'PWD': os.environ['PWD'],
+              'FILE': datacard_file[datacard_file.rindex('/')+1:],
+              'PATH': datacard_file.rsplit('/',1)[0]
+            }
+            outscript.write(connect_job_prefix)
+            jobs = 0
+            wsp_files = set()
+            for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
+                outscript.write('\nif [ $1 -eq %i ]; then\n' % jobs)
+                jobs += 1
+                for line in self.job_queue[j:j + self.merge]:
+                    newline = self.pre_cmd + line
+                    outscript.write('  ' + newline + '\n')
+                outscript.write('fi')
+            outscript.close()
+            st = os.stat(outscriptname)
+            os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
+            subfile = open(subfilename, "w")
+            condor_settings = CONNECT_TEMPLATE % {
+              'EXE': outscriptname,
+              'TASK': self.task_name,
+              'EXTRA': self.bopts.decode('string_escape'),
+              'NUMBER': jobs,
+              'DATACARD': datacard_file,
+              'FILE': self.input_file 
             }
             subfile.write(condor_settings)
             subfile.close()
