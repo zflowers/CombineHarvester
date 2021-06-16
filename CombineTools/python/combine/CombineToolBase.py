@@ -204,6 +204,8 @@ class CombineToolBase:
         self.pre_cmd = self.args.pre_cmd
         self.custom_crab_post = self.args.custom_crab_post
         self.method = self.args.method
+        print known
+        print unknown
 
     def put_back_arg(self, arg_name, target_name):
         if hasattr(self.args, arg_name):
@@ -335,7 +337,9 @@ class CombineToolBase:
             outscriptname = 'condor_%s.sh' % self.task_name
             subfilename = 'condor_%s.sub' % self.task_name
             name = ''
-            if '-n' in self.passthru:
+            if self.args.name is not None:
+                name = self.args.name
+            elif '-n' in self.passthru:
                 name = self.passthru[self.passthru.index('-n')+1]
             elif '--name' in self.passthru:
                 name = self.passthru[self.passthru.index('--name')+1]
@@ -346,9 +350,12 @@ class CombineToolBase:
                 datacard = str(self.extract_workspace_arg(newline.split())) 
                 datacard_file = datacard[datacard.rindex('/')+1:]
                 datacard_path = datacard.rsplit('/',1)[0]
-            else:
+            elif 'T2W' in self.method:
                 datacard = 'datacard.txt'
                 datacard_file = datacard
+                datacard_path = ''
+            elif 'Impact' in self.method:
+                datacard_file = self.args.datacard
                 datacard_path = ''
             mass = ''
             if '-m' in self.passthru:
@@ -359,9 +366,13 @@ class CombineToolBase:
                 mass = datacard.rsplit('/',1)[0]
                 mass = mass.rsplit('/',0)[0]
                 mass = mass[mass.rindex('/')+1:]
-            output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
-            if '-o' in self.passthru:
+            if 'AsymptoticLimits' in self.method:
+                output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
+            elif 'T2W' in self.method:
                 output_file = self.passthru[self.passthru.index('-o')+1]
+            elif 'Impacts' in self.method:
+                if self.args.doInitialFit is True:
+                    output_file = 'higgsCombine_initialFit_Test.MultiDimFit.mH'+mass+'.root'
             print '>> condor job script will be %s' % outscriptname
             outscript = open(outscriptname, "w")
             connect_job_prefix = JOB_PREFIX_CONNECT % {
