@@ -2,6 +2,13 @@ import os
 import stat
 from functools import partial
 from multiprocessing import Pool
+import CombineHarvester.CombineTools.combine.utils as utils
+#try:
+#    from HiggsAnalysis.CombinedLimit.RooAddPdfFixer import FixAll
+#except ImportError:
+#    #compatibility for combine version earlier than https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/tree/2d172ef50fccdfbbc2a499ac8e47bba2d667b95a
+#    #can delete in a few months
+#    def FixAll(workspace): pass
 
 DRY_RUN = False
 
@@ -204,8 +211,6 @@ class CombineToolBase:
         self.pre_cmd = self.args.pre_cmd
         self.custom_crab_post = self.args.custom_crab_post
         self.method = self.args.method
-        print known
-        print unknown
 
     def put_back_arg(self, arg_name, target_name):
         if hasattr(self.args, arg_name):
@@ -223,6 +228,21 @@ class CombineToolBase:
             return val, (' '.join(args))
         else:
             return None, args_str
+
+    def all_free_parameters(self, ws_file, wsp, mc, pois):
+        res = []
+        wsFile = ROOT.TFile.Open(file)
+        w = wsFile.Get(wsp)
+        FixAll(w)
+        config = w.genobj(mc)
+        pdfvars = config.GetPdf().getParameters(config.GetObservables())
+        it = pdfvars.createIterator()
+        var = it.Next()
+        while var:
+            if var.GetName() not in pois and (not var.isConstant()) and var.InheritsFrom("RooRealVar"):
+                res.append(var.GetName())
+            var = it.Next()
+        return res
 
     def create_job_script(self, commands, script_filename, do_log = False):
         fname = script_filename
@@ -366,6 +386,7 @@ class CombineToolBase:
                 mass = datacard.rsplit('/',1)[0]
                 mass = mass.rsplit('/',0)[0]
                 mass = mass[mass.rindex('/')+1:]
+            output_file = ''
             if 'AsymptoticLimits' in self.method:
                 output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
             elif 'T2W' in self.method:
@@ -373,6 +394,14 @@ class CombineToolBase:
             elif 'Impacts' in self.method:
                 if self.args.doInitialFit is True:
                     output_file = 'higgsCombine_initialFit_Test.MultiDimFit.mH'+mass+'.root'
+                elif self.args.doFits is True:
+                    if self.args.redefineSignalPOIs is not None:
+                        poiList = self.args.redefineSignalPOIs.split(',')
+                    else:
+                        poiList = utils.list_from_workspace(self.args.datacard, 'w', 'ModelConfig_POI')
+                    paramList = self.all_free_parameters(self.args.datacard, 'w', 'ModelConfig',poiList)
+                    for param in paramList:
+                        output_file += 'higgsCombine_paramFit_Test_'+param+'.MultiDimFit.mH'+mass+'.root,'
             print '>> condor job script will be %s' % outscriptname
             outscript = open(outscriptname, "w")
             connect_job_prefix = JOB_PREFIX_CONNECT % {
