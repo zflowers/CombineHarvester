@@ -64,7 +64,8 @@ log                   = %(TASK)s.$(ClusterId).log
 # Periodically retry the jobs every 10 minutes, up to a maximum of 5 retries.
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
 
-transfer_input_files = %(DATACARD)s,%(FILE)s
+transfer_input_files = %(DATACARD)s,%(IFILE)s
+transfer_output_files = cmssw-tmp/CMSSW_10_6_5/src/%(OFILE)s
 
 %(EXTRA)s
 queue %(NUMBER)s
@@ -184,7 +185,7 @@ class CombineToolBase:
         pass
 
     def set_args(self, known, unknown):
-        self.args = known
+        self.args = known 
         self.job_mode = self.args.job_mode
         self.job_dir = self.args.job_dir
         self.prefix_file = self.args.prefix_file
@@ -358,13 +359,32 @@ class CombineToolBase:
             st = os.stat(outscriptname)
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
+            name = ''
+            if '-n' in self.passthru:
+                name = self.passthru[self.passthru.index('-n')+1]
+            elif '--name' in self.passthru:
+                name = self.passthru[self.passthru.index('--name')+1]
+            combine_command = ''
+            if '-M' in self.passthru:
+                combine_command = self.passthru[self.passthru.index('-M')+1]
+            mass = ''
+            if '-m' in self.passthru:
+                mass = self.passthru[self.passthru.index('-m')+1]
+            elif '--mass' in self.passthru:
+                mass = self.passthru[self.passthru.index('--mass')+1]
+            if 'MASS' in mass: 
+                mass = datacard_file.rsplit('/',1)[0]
+                mass = mass.rsplit('/',0)[0]
+                mass = mass[mass.rindex('/')+1:]
+            output_file = 'higgsCombine'+name+'.'+combine_command+'.mH'+mass+'.root'
             condor_settings = CONNECT_TEMPLATE % {
               'EXE': outscriptname,
               'TASK': self.task_name,
               'EXTRA': self.bopts.decode('string_escape'),
               'NUMBER': jobs,
               'DATACARD': datacard_file,
-              'FILE': self.input_file 
+              'IFILE': self.input_file,
+              'OFILE': output_file
             }
             subfile.write(condor_settings)
             subfile.close()
