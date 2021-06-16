@@ -145,6 +145,7 @@ class CombineToolBase:
         self.custom_crab_post = None
         self.pre_cmd = ''
         self.crab_files = []
+        self.method = ''
 
     def attach_job_args(self, group):
         group.add_argument('--job-mode', default=self.job_mode, choices=[
@@ -202,6 +203,7 @@ class CombineToolBase:
         self.crab_files = self.args.crab_extra_files
         self.pre_cmd = self.args.pre_cmd
         self.custom_crab_post = self.args.custom_crab_post
+        self.method = self.args.method
 
     def put_back_arg(self, arg_name, target_name):
         if hasattr(self.args, arg_name):
@@ -332,18 +334,42 @@ class CombineToolBase:
         if self.job_mode == 'connect':
             outscriptname = 'condor_%s.sh' % self.task_name
             subfilename = 'condor_%s.sub' % self.task_name
-            for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
-                for line in self.job_queue[j:j + self.merge]:
-                    newline = self.pre_cmd + line
-            datacard_file = str(self.extract_workspace_arg(newline.split())) 
+            name = ''
+            if '-n' in self.passthru:
+                name = self.passthru[self.passthru.index('-n')+1]
+            elif '--name' in self.passthru:
+                name = self.passthru[self.passthru.index('--name')+1]
+            if 'AsymptoticLimits' in self.method:
+                for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
+                    for line in self.job_queue[j:j + self.merge]:
+                        newline = self.pre_cmd + line
+                datacard = str(self.extract_workspace_arg(newline.split())) 
+                datacard_file = datacard[datacard.rindex('/')+1:]
+                datacard_path = datacard.rsplit('/',1)[0]
+            else:
+                datacard = 'datacard.txt'
+                datacard_file = datacard
+                datacard_path = ''
+            mass = ''
+            if '-m' in self.passthru:
+                mass = self.passthru[self.passthru.index('-m')+1]
+            elif '--mass' in self.passthru:
+                mass = self.passthru[self.passthru.index('--mass')+1]
+            if 'MASS' in mass: 
+                mass = datacard.rsplit('/',1)[0]
+                mass = mass.rsplit('/',0)[0]
+                mass = mass[mass.rindex('/')+1:]
+            output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
+            if '-o' in self.passthru:
+                output_file = self.passthru[self.passthru.index('-o')+1]
             print '>> condor job script will be %s' % outscriptname
             outscript = open(outscriptname, "w")
             connect_job_prefix = JOB_PREFIX_CONNECT % {
               'CMSSW_BASE': os.environ['CMSSW_BASE'],
               'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
               'PWD': os.environ['PWD'],
-              'FILE': datacard_file[datacard_file.rindex('/')+1:],
-              'PATH': datacard_file.rsplit('/',1)[0]
+              'FILE': datacard_file,
+              'PATH': datacard_path
             }
             outscript.write(connect_job_prefix)
             jobs = 0
@@ -359,24 +385,6 @@ class CombineToolBase:
             st = os.stat(outscriptname)
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
-            name = ''
-            if '-n' in self.passthru:
-                name = self.passthru[self.passthru.index('-n')+1]
-            elif '--name' in self.passthru:
-                name = self.passthru[self.passthru.index('--name')+1]
-            combine_command = ''
-            if '-M' in self.passthru:
-                combine_command = self.passthru[self.passthru.index('-M')+1]
-            mass = ''
-            if '-m' in self.passthru:
-                mass = self.passthru[self.passthru.index('-m')+1]
-            elif '--mass' in self.passthru:
-                mass = self.passthru[self.passthru.index('--mass')+1]
-            if 'MASS' in mass: 
-                mass = datacard_file.rsplit('/',1)[0]
-                mass = mass.rsplit('/',0)[0]
-                mass = mass[mass.rindex('/')+1:]
-            output_file = 'higgsCombine'+name+'.'+combine_command+'.mH'+mass+'.root'
             condor_settings = CONNECT_TEMPLATE % {
               'EXE': outscriptname,
               'TASK': self.task_name,
