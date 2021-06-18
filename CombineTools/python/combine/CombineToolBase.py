@@ -1,14 +1,9 @@
 import os
 import stat
+import glob
 from functools import partial
 from multiprocessing import Pool
 import CombineHarvester.CombineTools.combine.utils as utils
-#try:
-#    from HiggsAnalysis.CombinedLimit.RooAddPdfFixer import FixAll
-#except ImportError:
-#    #compatibility for combine version earlier than https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/tree/2d172ef50fccdfbbc2a499ac8e47bba2d667b95a
-#    #can delete in a few months
-#    def FixAll(workspace): pass
 
 DRY_RUN = False
 
@@ -33,11 +28,11 @@ export SCRAM_ARCH=%(SCRAM_ARCH)s
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/cmssw_setup_connect.sh 
 source cmssw_setup_connect.sh
-wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2
-cmssw_setup sandbox-CMSSW_10_6_5-6403d6f.tar.bz2
-mkdir -p cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
-cp %(FILE)s cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
-cd cmssw-tmp/CMSSW_10_6_5/src/
+wget --quiet --no-check-certificate http://stash.osgconnect.net/+%(SANDBOX_PATH)s/%(SANDBOX)s
+cmssw_setup %(SANDBOX)s
+mkdir -p cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
+cp %(FILE)s cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
+cd cmssw-tmp/%(CMSSW_VERSION)s/src/
 eval `scramv1 runtime -sh`
 
 """
@@ -72,7 +67,7 @@ log                   = %(TASK)s.$(ClusterId).log
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
 
 transfer_input_files = %(DATACARD)s,%(IFILE)s
-transfer_output_files = cmssw-tmp/CMSSW_10_6_5/src/%(OFILE)s
+transfer_output_files = cmssw-tmp/%(CMSSW_VERSION)s/src/%(OFILE)s
 
 %(EXTRA)s
 queue %(NUMBER)s
@@ -154,6 +149,9 @@ class CombineToolBase:
         self.crab_files = []
         self.method = ''
         self.name = None
+        self.sandbox = 'sandbox-CMSSW_10_6_5-6403d6f.tar.bz2'
+        self.sandbox_path = 'zflowers'
+        self.make_sandbox = False
 
     def attach_job_args(self, group):
         group.add_argument('--job-mode', default=self.job_mode, choices=[
@@ -163,6 +161,12 @@ class CombineToolBase:
         group.add_argument('--prefix-file', default=self.prefix_file,
                            help='Path to file containing job prefix')
         group.add_argument('--input-file', default=self.input_file,
+                           help='Path to input file that datacards reference (only needed with --job-mode connect)')
+        group.add_argument('--sandbox', default=self.sandbox,
+                           help='Name of sandbox to be used (only needed with --job-mode connect)')
+        group.add_argument('--sandbox-path', default=self.sandbox_path,
+                           help='Path to sandbox that is of the form "your_username/" The sandbox needs to be in some area like /stash/username/public/ with proper permissions (only needed with --job-mode connect)')
+        group.add_argument('--make-sandbox', action='store_true',
                            help='Path to input file that datacards reference (only needed with --job-mode connect)')
         group.add_argument('--task-name', default=self.task_name,
                            help='Task name, used for job script and log filenames for batch system tasks')
@@ -212,6 +216,9 @@ class CombineToolBase:
         self.pre_cmd = self.args.pre_cmd
         self.custom_crab_post = self.args.custom_crab_post
         self.method = self.args.method
+        self.sandbox = self.args.sandbox
+        self.sandbox_path = self.args.sandbox_path
+        self.make_sandbox = self.args.make_sandbox
 
     def put_back_arg(self, arg_name, target_name):
         if hasattr(self.args, arg_name):
@@ -229,6 +236,29 @@ class CombineToolBase:
             return val, (' '.join(args))
         else:
             return None, args_str
+
+    def sandbox_maker(self):
+        CMSSW_VERSION = os.environ['CMSSW_VERSION']
+        CMSSW_BASE = os.environ['CMSSW_BASE']
+        print("Note that CMSSW Version is assumed to be: "+str(CMSSW_VERSION)+" inside of: "+str(CMSSW_BASE))
+        print("Going to stash area")
+        os.chdir('/stash/user/'+os.environ['USER']+'/')
+        if not os.path.isdir('cmssw-sandbox'):
+            print("Getting sandbox git repo")
+            os.system('git clone https://github.com/CMSConnect/cmssw-sandbox')
+        print("Making sandbox...")
+        os.system('cmssw-sandbox/cmssw-sandbox create -a '+str(CMSSW_BASE))
+        print("Setting up sandbox")
+        if not os.path.isdir('public'):
+            os.system('mkdir public')
+            os.system('chmod 775 public/')
+        sandbox = glob.glob('sandbox*'+CMSSW_VERSION+'*')[0]
+        print("Assuming sandbox that was made is: "+str(sandbox))
+        os.system('mv '+str(sandbox)+' public/')
+        os.system('chmod 644 public/'+str(sandbox))
+        self.sandbox = sandbox
+        self.sandbox_path = os.environ['USER']
+        os.chdir(os.environ['PWD'])
 
     def all_free_parameters(self, ws_file, wsp, mc, pois):
         res = []
@@ -401,14 +431,18 @@ class CombineToolBase:
                     paramList = self.all_free_parameters(self.args.datacard, 'w', 'ModelConfig',poiList)
                     for param in paramList:
                         output_file += 'higgsCombine_paramFit_Test_'+param+'.MultiDimFit.mH'+mass+'.root,'
+            if self.make_sandbox:
+                self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
             outscript = open(outscriptname, "w")
             connect_job_prefix = JOB_PREFIX_CONNECT % {
-              'CMSSW_BASE': os.environ['CMSSW_BASE'],
+              'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
               'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
               'PWD': os.environ['PWD'],
               'FILE': datacard_file,
-              'PATH': datacard_path
+              'PATH': datacard_path,
+              'SANDBOX_PATH': self.sandbox_path,
+              'SANDBOX': self.sandbox
             }
             outscript.write(connect_job_prefix)
             jobs = 0
@@ -425,6 +459,7 @@ class CombineToolBase:
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
             condor_settings = CONNECT_TEMPLATE % {
+              'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
               'EXE': outscriptname,
               'TASK': self.task_name,
               'EXTRA': self.bopts.decode('string_escape'),
