@@ -1294,6 +1294,7 @@ void CombineHarvester::WriteHistToFile(
     std::string const& mass,
     std::string const& nuisance,
     unsigned type) {
+  return;
   StrPairVec attempts = this->GenerateShapeMapAttempts(process, bin);
   for (unsigned a = 0; a < attempts.size(); ++a) {
     for (unsigned m = 0; m < mappings.size(); ++m) {
