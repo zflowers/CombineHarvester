@@ -153,6 +153,7 @@ class CombineToolBase:
         self.pre_cmd = ''
         self.crab_files = []
         self.method = ''
+        self.name = None
 
     def attach_job_args(self, group):
         group.add_argument('--job-mode', default=self.job_mode, choices=[
@@ -357,9 +358,7 @@ class CombineToolBase:
             outscriptname = 'condor_%s.sh' % self.task_name
             subfilename = 'condor_%s.sub' % self.task_name
             name = ''
-            if self.args.name is not None:
-                name = self.args.name
-            elif '-n' in self.passthru:
+            if '-n' in self.passthru:
                 name = self.passthru[self.passthru.index('-n')+1]
             elif '--name' in self.passthru:
                 name = self.passthru[self.passthru.index('--name')+1]
