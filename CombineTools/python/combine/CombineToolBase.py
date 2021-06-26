@@ -32,7 +32,7 @@ wget --quiet --no-check-certificate http://stash.osgconnect.net/+%(SANDBOX_PATH)
 cmssw_setup %(SANDBOX)s
 mkdir -p cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
 cp %(FILE)s cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
-cd cmssw-tmp/%(CMSSW_VERSION)s/src/
+cd cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
 eval `scramv1 runtime -sh`
 
 """
@@ -67,7 +67,7 @@ log                   = %(TASK)s.$(ClusterId).log
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
 
 transfer_input_files = %(DATACARD)s,%(IFILE)s
-transfer_output_files = cmssw-tmp/%(CMSSW_VERSION)s/src/%(OFILE)s
+transfer_output_files = cmssw-tmp/%(CMSSW_VERSION)s/src/%(OPATH)s/%(OFILE)s
 
 %(EXTRA)s
 queue %(NUMBER)s
@@ -310,6 +310,7 @@ class CombineToolBase:
                 assert idx != -1 and idx < len(cmd_list)
                 return cmd_list[idx + 1]
         raise RuntimeError('The workspace argument must be specified explicity with -d or --datacard')
+
     def flush_queue(self):
         if self.job_mode == 'interactive':
             pool = Pool(processes=self.parallel)
@@ -406,6 +407,9 @@ class CombineToolBase:
             elif 'Impact' in self.method:
                 datacard_file = self.args.datacard
                 datacard_path = ''
+            if self.input_file.count('../') > 3:
+                for i in range(3,self.input_file.count('../')):
+                    datacard_path = datacard_path + "/tmp"+str(i)+"/"
             mass = ''
             if '-m' in self.passthru:
                 mass = self.passthru[self.passthru.index('-m')+1]
@@ -466,6 +470,7 @@ class CombineToolBase:
               'NUMBER': jobs,
               'DATACARD': datacard_file,
               'IFILE': self.input_file,
+              'OPATH': datacard_path,
               'OFILE': output_file
             }
             subfile.write(condor_settings)
