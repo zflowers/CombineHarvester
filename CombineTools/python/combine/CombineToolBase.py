@@ -479,7 +479,7 @@ class CombineToolBase:
                 if self.args.doFits is True:
                     cmssw = ''
                     os.system("echo \"\nmv *param*.root ../../../ \" >> "+str(outscriptname))
-                    os.system("echo \"\nrm sandbox* cmssw_setup* \" >> "+str(outscriptname))
+                    os.system("echo \"\nrm ../../../sandbox* ../../../cmssw_setup* \" >> "+str(outscriptname))
             run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
         if self.job_mode == 'crab3':
