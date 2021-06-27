@@ -67,7 +67,7 @@ log                   = %(TASK)s.$(ClusterId).log
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
 
 transfer_input_files = %(DATACARD)s,%(IFILE)s
-transfer_output_files = cmssw-tmp/%(CMSSW_VERSION)s/src/%(OPATH)s/%(OFILE)s
+transfer_output_files = %(CMSSW_VERSION)s%(OPATH)s%(OFILE)s
 
 %(EXTRA)s
 queue %(NUMBER)s
@@ -420,6 +420,7 @@ class CombineToolBase:
                 mass = mass.rsplit('/',0)[0]
                 mass = mass[mass.rindex('/')+1:]
             output_file = ''
+            cmssw = 'cmssw-tmp/'+str(os.environ['CMSSW_VERSION'])+'/src/'
             if 'AsymptoticLimits' in self.method:
                 output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
             elif 'T2W' in self.method:
@@ -433,8 +434,7 @@ class CombineToolBase:
                     else:
                         poiList = utils.list_from_workspace(self.args.datacard, 'w', 'ModelConfig_POI')
                     paramList = self.all_free_parameters(self.args.datacard, 'w', 'ModelConfig',poiList)
-                    for param in paramList:
-                        output_file += 'higgsCombine_paramFit_Test_'+param+'.MultiDimFit.mH'+mass+'.root,'
+                    cmssw = ''
             if self.make_sandbox:
                 self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
@@ -463,7 +463,7 @@ class CombineToolBase:
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
             condor_settings = CONNECT_TEMPLATE % {
-              'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
+              'CMSSW_VERSION': cmssw,
               'EXE': outscriptname,
               'TASK': self.task_name,
               'EXTRA': self.bopts.decode('string_escape'),
@@ -475,6 +475,11 @@ class CombineToolBase:
             }
             subfile.write(condor_settings)
             subfile.close()
+            if 'Impacts' in self.method:
+                if self.args.doFits is True:
+                    cmssw = ''
+                    os.system("echo \"mv *param*.root ../../../ \" >> "+str(outscriptname))
+                    os.system("echo \"rm sandbox* cmssw_setup* \" >> "+str(outscriptname))
             run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
         if self.job_mode == 'crab3':
