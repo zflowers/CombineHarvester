@@ -219,6 +219,7 @@ class CombineToolBase:
         self.sandbox = self.args.sandbox
         self.sandbox_path = self.args.sandbox_path
         self.make_sandbox = self.args.make_sandbox
+        self.name = self.args.name
 
     def put_back_arg(self, arg_name, target_name):
         if hasattr(self.args, arg_name):
@@ -388,11 +389,9 @@ class CombineToolBase:
         if self.job_mode == 'connect':
             outscriptname = 'condor_%s.sh' % self.task_name
             subfilename = 'condor_%s.sub' % self.task_name
-            name = ''
-            if '-n' in self.passthru:
-                name = self.passthru[self.passthru.index('-n')+1]
-            elif '--name' in self.passthru:
-                name = self.passthru[self.passthru.index('--name')+1]
+            name = 'Test'
+            if self.name is not None:
+                name = self.name
             if 'AsymptoticLimits' in self.method:
                 for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
                     for line in self.job_queue[j:j + self.merge]:
@@ -427,7 +426,7 @@ class CombineToolBase:
                 output_file = self.passthru[self.passthru.index('-o')+1]
             elif 'Impacts' in self.method:
                 if self.args.doInitialFit is True:
-                    output_file = 'higgsCombine_initialFit_Test.MultiDimFit.mH'+mass+'.root'
+                    output_file = 'higgsCombine_initialFit_'+name+'.MultiDimFit.mH'+mass+'.root'
                 elif self.args.doFits is True:
                     if self.args.redefineSignalPOIs is not None:
                         poiList = self.args.redefineSignalPOIs.split(',')
