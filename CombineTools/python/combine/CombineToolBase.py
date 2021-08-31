@@ -219,8 +219,11 @@ class CombineToolBase:
         self.sandbox = self.args.sandbox
         self.sandbox_path = self.args.sandbox_path
         self.make_sandbox = self.args.make_sandbox
-        if 'name' in self.args:
-            self.name = self.args.name
+        try:
+            if 'name' in self.args:
+                self.name = self.args.name
+        except:
+            pass
 
     def put_back_arg(self, arg_name, target_name):
         if hasattr(self.args, arg_name):
