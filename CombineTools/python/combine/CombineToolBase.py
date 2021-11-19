@@ -423,7 +423,10 @@ class CombineToolBase:
             elif 'Impact' in self.method:
                 datacard_file = self.args.datacard
                 datacard_path = ''
-            if self.input_file.count('../') > 3:
+            elif 'FitDiagnostics' in self.method:
+		datacard_file = self.args.datacard[0]
+                datacard_path = ''
+	    if self.input_file.count('../') > 3:
                 for i in range(3,self.input_file.count('../')):
                     datacard_path = datacard_path + "/tmp"+str(i)+"/"
             mass = ''
@@ -432,10 +435,12 @@ class CombineToolBase:
             elif '--mass' in self.passthru:
                 mass = self.passthru[self.passthru.index('--mass')+1]
             if 'MASS' in mass: 
-                mass = datacard.rsplit('/',1)[0]
-                mass = mass.rsplit('/',0)[0]
-                mass = mass[mass.rindex('/')+1:]
-            output_file = ''
+       #         mass = datacard.rsplit('/',1)[0]
+        #        mass = mass.rsplit('/',0)[0]
+         #       mass = mass[mass.rindex('/')+1:]
+          	 mass = os.getcwd().rsplit('/',1)[0]
+	    output_file = ''
+	    print(mass)
             cmssw = 'cmssw-tmp/'+str(os.environ['CMSSW_VERSION'])+'/src/'
             if 'AsymptoticLimits' in self.method:
                 output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
@@ -451,7 +456,8 @@ class CombineToolBase:
                         poiList = utils.list_from_workspace(self.args.datacard, 'w', 'ModelConfig_POI')
                     paramList = self.all_free_parameters(self.args.datacard, 'w', 'ModelConfig',poiList)
                     cmssw = ''
-            if self.make_sandbox:
+           
+	    if self.make_sandbox:
                 self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
             outscript = open(outscriptname, "w")
