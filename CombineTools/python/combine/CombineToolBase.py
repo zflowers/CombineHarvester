@@ -26,13 +26,17 @@ ulimit -s unlimited
 set -e
 export SCRAM_ARCH=%(SCRAM_ARCH)s
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/cmssw_setup_connect.sh 
+#wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/cmssw_setup_connect.sh 
 source cmssw_setup_connect.sh
-wget --quiet --no-check-certificate http://stash.osgconnect.net/+%(SANDBOX_PATH)s/%(SANDBOX)s
-cmssw_setup %(SANDBOX)s
-mkdir -p cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
-cp %(FILE)s cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
-cd cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
+#wget --quiet --no-check-certificate http://stash.osgconnect.net/+%(SANDBOX_PATH)s/%(SANDBOX)s
+#cmssw_setup %(SANDBOX)s
+#mkdir -p cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
+#cp %(FILE)s cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
+#cd cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
+cmssw_setup sandbox-CMSSW_10_6_5-6403d6f.tar.bz2
+mkdir -p cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
+cp %(FILE)s cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
+cd cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
 eval `scramv1 runtime -sh`
 
 """
@@ -66,7 +70,8 @@ log                   = %(TASK)s.$(ClusterId).log
 # Periodically retry the jobs every 10 minutes, up to a maximum of 5 retries.
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
 
-transfer_input_files = %(DATACARD)s,%(IFILE)s
+transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
+#transfer_input_files = %(DATACARD)s,%(IFILE)s
 transfer_output_files = %(CMSSW_VERSION)s%(OPATH)s%(OFILE)s
 
 %(EXTRA)s
