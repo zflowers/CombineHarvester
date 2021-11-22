@@ -461,7 +461,8 @@ class CombineToolBase:
                         poiList = utils.list_from_workspace(self.args.datacard, 'w', 'ModelConfig_POI')
                     paramList = self.all_free_parameters(self.args.datacard, 'w', 'ModelConfig',poiList)
                     cmssw = ''
-           
+            elif 'FitDiagnostics' in self.method:
+		output_file = 'fitDiagnostics'+name+'.root' 
 	    if self.make_sandbox:
                 self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
