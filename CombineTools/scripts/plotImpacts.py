@@ -83,8 +83,9 @@ POI_fit = POI_info['fit']
 # Sort parameters by largest absolute impact on this POI
 #data['params'].sort(key=lambda x: abs(x['impact_%s' % POI]), reverse=True)
 # Sort parameters alphabetically
-data['params'].sort()
-
+data['params'].sort(key=lambda x: x['name'])
+for i in range(5):
+	print(data['params'][i]['name'])
 if args.checkboxes:
     cboxes = data['checkboxes']
 
