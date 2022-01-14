@@ -23,7 +23,7 @@ cd %(PWD)s
 
 JOB_PREFIX_CONNECT = """#!/bin/bash
 ulimit -s unlimited
-set -e
+set -ex
 export SCRAM_ARCH=%(SCRAM_ARCH)s
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 #wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/cmssw_setup_connect.sh 
@@ -31,11 +31,10 @@ source cmssw_setup_connect.sh
 #wget --quiet --no-check-certificate http://stash.osgconnect.net/+%(SANDBOX_PATH)s/%(SANDBOX)s
 #cmssw_setup %(SANDBOX)s
 #mkdir -p cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
-#cp %(FILE)s cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
 #cd cmssw-tmp/%(CMSSW_VERSION)s/src/%(PATH)s/
 cmssw_setup sandbox-CMSSW_10_6_5-6403d6f.tar.bz2
 mkdir -p cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
-cp %(FILE)s cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
+cp --parents %(FILE)s cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
 cd cmssw-tmp/CMSSW_10_6_5/src/%(PATH)s/
 eval `scramv1 runtime -sh`
 
@@ -69,6 +68,8 @@ log                   = %(TASK)s.$(ClusterId).log
 
 # Periodically retry the jobs every 10 minutes, up to a maximum of 5 retries.
 periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)
+
+preserve_relative_paths = True
 
 transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
 #transfer_input_files = %(DATACARD)s,%(IFILE)s
@@ -418,18 +419,32 @@ class CombineToolBase:
                 for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
                     for line in self.job_queue[j:j + self.merge]:
                         newline = self.pre_cmd + line
-                datacard = str(self.extract_workspace_arg(newline.split())) 
-                datacard_file = datacard[datacard.rindex('/')+1:]
-                datacard_path = datacard.rsplit('/',1)[0]
-            elif 'T2W' in self.method:
+		datacard = str(self.extract_workspace_arg(newline.split())) 
+		datacard_path = ''#datacard.rsplit('/',1)[0]
+                if len(self.args.datacard) > 1: #do grid
+			datacard_file = ''
+			datacard_file_all = ''
+			for d in self.args.datacard:
+				datacard_file_all += d+' '
+			datacard_file = 'datacards.tar.gz'
+			os.system("tar -czf datacards.tar.gz "+datacard_file_all)
+			datacard_file_all = datacard_file
+		else:
+			datacard_file = datacard
+			datacard_file_all = datacard_file
+            	#print 'self.args.datacard',self.args.datacard,'datacard_file:',datacard_file,'datacard_path:',datacard_path,'datacard:',datacard
+	    elif 'T2W' in self.method:
                 datacard = 'datacard.txt'
                 datacard_file = datacard
+		datacard_file_all = datacard_file
                 datacard_path = ''
             elif 'Impact' in self.method:
                 datacard_file = self.args.datacard
+		datacard_file_all = datacard_file
                 datacard_path = ''
             elif 'FitDiagnostics' in self.method:
 		datacard_file = self.args.datacard[0]
+		datacard_file_all = datacard_file
                 datacard_path = ''
 	    if self.input_file.count('../') > 3:
                 for i in range(3,self.input_file.count('../')):
@@ -439,17 +454,40 @@ class CombineToolBase:
                 mass = self.passthru[self.passthru.index('-m')+1]
             elif '--mass' in self.passthru:
                 mass = self.passthru[self.passthru.index('--mass')+1]
-            if 'MASS' in mass: 
-       #         mass = datacard.rsplit('/',1)[0]
-        #        mass = mass.rsplit('/',0)[0]
-         #       mass = mass[mass.rindex('/')+1:]
-          	 mass = os.getcwd().rsplit('/',1)[0]
+            if 'MASS' in mass:
+		if 'AsymptoticLimits' not in self.method: 
+      	 #         mass = datacard.rsplit('/',1)[0]
+      	  #        mass = mass.rsplit('/',0)[0]
+      	   #       mass = mass[mass.rindex('/')+1:]
+      	  		mass = os.getcwd().rsplit('/',1)[0]
+		else:
+			if len(self.args.datacard) > 1:
+				mass = []
+				for d in self.args.datacard:
+					mass.append(d.rsplit('/',2)[-2])
+			else:
+				mass = datacard_file.rsplit('/')[-2]
+			#mass = "*" if len(self.args.datacard) > 1 else datacard_file.rsplit('/')[-2] 
 	    output_file = ''
-	    print(mass)
             cmssw = 'cmssw-tmp/'+str(os.environ['CMSSW_VERSION'])+'/src/'
             if 'AsymptoticLimits' in self.method:
-                output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
-            elif 'T2W' in self.method:
+		cmssw = ''
+	#	if type(mass) is list:
+	#		output_file = ''
+	#	#	for m in mass:
+	#	#		#output_file += cmssw+datacard_path+datacard.rsplit('/',2)[0]+'/'+m+'/higgsCombine'+name+'.'+self.method+'.mH'+m+'.root,'
+	#	#		output_file += cmssw+datacard_path+'higgsCombine'+name+'.'+self.method+'.mH'+m+'.root,'
+	#	#	output_file = output_file[len(cmssw):-1]
+	#	elif type(mass) is str and 'tar.gz' not in self.args.datacard:
+	#		output_file = 'higgsCombine'+name+'.'+self.method+'.mH'+mass+'.root'
+	#	else:
+	#		output_file = ''
+		#the FitInput file is copied to base dir, but then we move to the cmssw/CMSSW_10_6_5/src so it needs to be copied to this dir, which is done later
+	#	if '/' in datacard_file: #FitInput_*.root file is transferred to execute dir, but not copied to cmssw/CMSSW_10_6_5/src dir (or the dir that the datacards are in)
+	#		for i in range(datacard_file.count('/')+3):
+	#			self.input_file = "../"+self.input_file
+            	#print 'output_file:',output_file,'mass:',mass
+	    elif 'T2W' in self.method:
                 output_file = self.passthru[self.passthru.index('-o')+1]
             elif 'Impacts' in self.method:
                 if self.args.doInitialFit is True:
@@ -471,13 +509,17 @@ class CombineToolBase:
               'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
               'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
               'PWD': os.environ['PWD'],
-              'FILE': datacard_file,
+              'FILE': datacard_file_all,
               'PATH': datacard_path,
               'SANDBOX_PATH': self.sandbox_path,
               'SANDBOX': self.sandbox
             }
             outscript.write(connect_job_prefix)
-            jobs = 0
+            if 'AsymptoticLimits' in self.method: #copy fit input file to cmssw/CMSSW_10_6_5/src/ dir
+                if len(self.args.datacard) > 1: #do grid
+			outscript.write('tar -xf datacards.tar.gz\n')
+		outscript.write('cp ../../../'+self.input_file+' .')
+	    jobs = 0
             wsp_files = set()
             for i, j in enumerate(range(0, len(self.job_queue), self.merge)):
                 outscript.write('\nif [ $1 -eq %i ]; then\n' % jobs)
@@ -486,7 +528,9 @@ class CombineToolBase:
                     newline = self.pre_cmd + line
                     outscript.write('  ' + newline + '\n')
                 outscript.write('fi')
-            outscript.close()
+        #    if 'AsymptoticLimits' in self.method: #copy output files back to base dir
+	#	outscript.write('\ncp '+output_file+' ../../../')
+	    outscript.close()
             st = os.stat(outscriptname)
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
@@ -502,7 +546,10 @@ class CombineToolBase:
               'OFILE': output_file
             }
             subfile.write(condor_settings)
-            subfile.close()
+	    if 'AsymptoticLimits' in self.method:
+            	#subfile.write('\npreserve_relative_paths=True')
+                os.system("echo \"\nmv *AsymptoticLimits*.root ../../../ \" >> "+str(outscriptname))
+	    subfile.close()
             if 'Impacts' in self.method:
                 if self.args.doFits is True:
                     cmssw = ''
