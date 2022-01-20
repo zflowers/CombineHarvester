@@ -75,6 +75,7 @@ transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-C
 #transfer_input_files = %(DATACARD)s,%(IFILE)s
 transfer_output_files = %(CMSSW_VERSION)s%(OPATH)s%(OFILE)s
 
+request_memory = %(MEMORY)s MB
 %(EXTRA)s
 queue %(NUMBER)s
 
@@ -539,7 +540,8 @@ class CombineToolBase:
               'EXE': outscriptname,
               'TASK': self.task_name,
               'EXTRA': self.bopts.decode('string_escape'),
-              'NUMBER': jobs,
+              'MEMORY': str(self.args.memory),
+	      'NUMBER': jobs,
               'DATACARD': datacard_file,
               'IFILE': self.input_file,
               'OPATH': datacard_path,
