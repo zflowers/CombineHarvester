@@ -499,7 +499,7 @@ class CombineToolBase:
                     else:
                         poiList = utils.list_from_workspace(self.args.datacard, 'w', 'ModelConfig_POI')
                     paramList = self.all_free_parameters(self.args.datacard, 'w', 'ModelConfig',poiList)
-                    cmssw = ''
+                cmssw = ''
             elif 'FitDiagnostics' in self.method:
 		output_file = 'fitDiagnostics'+name+'.root' 
 	    if self.make_sandbox:
@@ -532,6 +532,10 @@ class CombineToolBase:
         #    if 'AsymptoticLimits' in self.method: #copy output files back to base dir
 	#	outscript.write('\ncp '+output_file+' ../../../')
 	    outscript.close()
+	    if self.args.memory is None:
+		mem = 2000
+	    else:
+		mem = self.args.memory
             st = os.stat(outscriptname)
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
@@ -540,7 +544,7 @@ class CombineToolBase:
               'EXE': outscriptname,
               'TASK': self.task_name,
               'EXTRA': self.bopts.decode('string_escape'),
-              'MEMORY': str(self.args.memory),
+              'MEMORY': str(mem),
 	      'NUMBER': jobs,
               'DATACARD': datacard_file,
               'IFILE': self.input_file,
@@ -556,6 +560,10 @@ class CombineToolBase:
                 if self.args.doFits is True:
                     cmssw = ''
                     os.system("echo \"\nmv *param*.root ../../../ \" >> "+str(outscriptname))
+                    os.system("echo \"\nrm ../../../sandbox* ../../../cmssw_setup* \" >> "+str(outscriptname))
+                elif self.args.doInitialFit is True:
+                    cmssw = ''
+                    os.system("echo \"\nmv *initialFit*.root ../../../ \" >> "+str(outscriptname))
                     os.system("echo \"\nrm ../../../sandbox* ../../../cmssw_setup* \" >> "+str(outscriptname))
             run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
