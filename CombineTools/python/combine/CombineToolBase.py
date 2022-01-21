@@ -23,7 +23,7 @@ cd %(PWD)s
 
 JOB_PREFIX_CONNECT = """#!/bin/bash
 ulimit -s unlimited
-set -ex
+set -e
 export SCRAM_ARCH=%(SCRAM_ARCH)s
 source /cvmfs/cms.cern.ch/cmsset_default.sh
 #wget --quiet --no-check-certificate http://stash.osgconnect.net/+zflowers/cmssw_setup_connect.sh 
