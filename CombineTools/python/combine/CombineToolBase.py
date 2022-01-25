@@ -502,6 +502,7 @@ class CombineToolBase:
                 cmssw = ''
             elif 'FitDiagnostics' in self.method:
 		output_file = 'fitDiagnostics'+name+'.root' 
+                cmssw = ''
 	    if self.make_sandbox:
                 self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
@@ -565,7 +566,10 @@ class CombineToolBase:
                     cmssw = ''
                     os.system("echo \"\nmv *initialFit*.root ../../../ \" >> "+str(outscriptname))
                     os.system("echo \"\nrm ../../../sandbox* ../../../cmssw_setup* \" >> "+str(outscriptname))
-            run_command(self.dry_run, 'condor_submit %s' % (subfilename))
+            if 'FitDiagnostics' in self.method:
+                cmssw = ''
+                os.system("echo \"\nmv *fitDiagnostics*.root ../../../ \" >> "+str(outscriptname))
+	    run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
         if self.job_mode == 'crab3':
             #import the stuff we need
