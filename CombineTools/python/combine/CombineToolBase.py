@@ -450,6 +450,8 @@ class CombineToolBase:
 	    if self.input_file.count('../') > 3:
                 for i in range(3,self.input_file.count('../')):
                     datacard_path = datacard_path + "/tmp"+str(i)+"/"
+	    if 'T2W' in self.method:
+                datacard_path = '/tmp1/'
             mass = ''
             if '-m' in self.passthru:
                 mass = self.passthru[self.passthru.index('-m')+1]
