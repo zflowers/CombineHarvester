@@ -492,6 +492,7 @@ class CombineToolBase:
             	#print 'output_file:',output_file,'mass:',mass
 	    elif 'T2W' in self.method:
                 output_file = self.passthru[self.passthru.index('-o')+1]
+                cmssw = ''
             elif 'Impacts' in self.method:
                 if self.args.doInitialFit is True:
                     output_file = 'higgsCombine_initialFit_'+name+'.MultiDimFit.mH'+mass+'.root'
@@ -542,7 +543,9 @@ class CombineToolBase:
             st = os.stat(outscriptname)
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
-            condor_settings = CONNECT_TEMPLATE % {
+            if 'T2W' in self.method:
+		datacard_path = ''
+ 	    condor_settings = CONNECT_TEMPLATE % {
               'CMSSW_VERSION': cmssw,
               'EXE': outscriptname,
               'TASK': self.task_name,
@@ -571,6 +574,10 @@ class CombineToolBase:
             if 'FitDiagnostics' in self.method:
                 cmssw = ''
                 os.system("echo \"\nmv *fitDiagnostics*.root ../../../ \" >> "+str(outscriptname))
+            if 'T2W' in self.method:
+	       cmssw = ''
+	       print("here",datacard_path,output_file,self.method)  
+	       os.system("echo \"\nmv "+output_file+" ../../../../ \" >> "+str(outscriptname))
 	    run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
         if self.job_mode == 'crab3':
