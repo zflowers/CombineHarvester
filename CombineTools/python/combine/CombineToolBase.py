@@ -576,7 +576,6 @@ class CombineToolBase:
                 os.system("echo \"\nmv *fitDiagnostics*.root ../../../ \" >> "+str(outscriptname))
             if 'T2W' in self.method:
 	       cmssw = ''
-	       print("here",datacard_path,output_file,self.method)  
 	       os.system("echo \"\nmv "+output_file+" ../../../../ \" >> "+str(outscriptname))
 	    run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
