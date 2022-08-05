@@ -71,7 +71,8 @@ periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) 
 
 preserve_relative_paths = True
 
-transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
+transfer_input_files = /stash/user/zflowers/public/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2, /stash/user/zflowers/public/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
+#transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
 #transfer_input_files = %(DATACARD)s,%(IFILE)s
 transfer_output_files = %(CMSSW_VERSION)s%(OPATH)s%(OFILE)s
 
@@ -509,16 +510,27 @@ class CombineToolBase:
 	    if self.make_sandbox:
                 self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
-            outscript = open(outscriptname, "w")
-            connect_job_prefix = JOB_PREFIX_CONNECT % {
-              'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
-              'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
-              'PWD': os.environ['PWD'],
-              'FILE': datacard_file_all,
-              'PATH': datacard_path,
-              'SANDBOX_PATH': self.sandbox_path,
-              'SANDBOX': self.sandbox
-            }
+	    outscript = open(outscriptname, "w")
+            if os.environ['SCRAM_ARCH'] != "slc7_amd64_gcc700":
+            	connect_job_prefix = JOB_PREFIX_CONNECT % {
+            	  'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
+            	  'SCRAM_ARCH': "slc7_amd64_gcc700",
+            	  'PWD': os.environ['PWD'],
+            	  'FILE': datacard_file_all,
+            	  'PATH': datacard_path,
+            	  'SANDBOX_PATH': self.sandbox_path,
+            	  'SANDBOX': self.sandbox
+            	}
+	    else:
+            	connect_job_prefix = JOB_PREFIX_CONNECT % {
+            	  'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
+            	  'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
+            	  'PWD': os.environ['PWD'],
+            	  'FILE': datacard_file_all,
+            	  'PATH': datacard_path,
+            	  'SANDBOX_PATH': self.sandbox_path,
+            	  'SANDBOX': self.sandbox
+            	}
             outscript.write(connect_job_prefix)
             if 'AsymptoticLimits' in self.method: #copy fit input file to cmssw/CMSSW_10_6_5/src/ dir
                 if len(self.args.datacard) > 1: #do grid
