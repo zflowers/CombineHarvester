@@ -71,8 +71,8 @@ periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) 
 
 preserve_relative_paths = True
 
-transfer_input_files = /stash/user/zflowers/public/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2, /stash/user/zflowers/public/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
-#transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
+#transfer_input_files = /stash/user/zflowers/public/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2, /stash/user/zflowers/public/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
+transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
 #transfer_input_files = %(DATACARD)s,%(IFILE)s
 transfer_output_files = %(CMSSW_VERSION)s%(OPATH)s%(OFILE)s
 
