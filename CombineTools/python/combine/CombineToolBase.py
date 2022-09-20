@@ -71,6 +71,7 @@ periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) 
 
 preserve_relative_paths = True
 
+#transfer_input_files = /stash/user/zflowers/public/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2, /stash/user/zflowers/public/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
 transfer_input_files = /uscms/home/z374f439/nobackup/whatever_you_want/sandbox-CMSSW_10_6_5-6403d6f.tar.bz2,/uscms/home/z374f439/nobackup/whatever_you_want/cmssw_setup_connect.sh,%(DATACARD)s,%(IFILE)s
 #transfer_input_files = %(DATACARD)s,%(IFILE)s
 transfer_output_files = %(CMSSW_VERSION)s%(OPATH)s%(OFILE)s
@@ -434,17 +435,21 @@ class CombineToolBase:
 			datacard_file = datacard
 			datacard_file_all = datacard_file
             	#print 'self.args.datacard',self.args.datacard,'datacard_file:',datacard_file,'datacard_path:',datacard_path,'datacard:',datacard
-	    elif 'T2W' in self.method:
+	    elif 'T2W' in self.method: #takes datacard as input
                 datacard = 'datacard.txt'
                 datacard_file = datacard
 		datacard_file_all = datacard_file
                 datacard_path = ''
-            elif 'Impact' in self.method:
+            elif 'Impact' in self.method: #takes workspace as input
                 datacard_file = self.args.datacard
 		datacard_file_all = datacard_file
                 datacard_path = ''
-            elif 'FitDiagnostics' in self.method:
+            elif 'FitDiagnostics' in self.method: #takes workspace as input
 		datacard_file = self.args.datacard[0]
+		datacard_file_all = datacard_file
+                datacard_path = ''
+            elif 'HybridNew' in self.method: #takes workspace as input
+                datacard_file = self.args.datacard[0]
 		datacard_file_all = datacard_file
                 datacard_path = ''
 	    if self.input_file.count('../') > 3:
@@ -452,7 +457,11 @@ class CombineToolBase:
                     datacard_path = datacard_path + "/tmp"+str(i)+"/"
 	    if 'T2W' in self.method:
                 datacard_path = '/tmp1/'
-            mass = ''
+	    seed = ''
+            if '-s' in self.passthru:
+                #seed = self.passthru[self.passthru.index('-s')+1]
+		seed = self.job_queue[0].split(' ')[self.job_queue[0].split(' ').index('-s')+1]
+	    mass = ''
             if '-m' in self.passthru:
                 mass = self.passthru[self.passthru.index('-m')+1]
             elif '--mass' in self.passthru:
@@ -462,7 +471,8 @@ class CombineToolBase:
       	 #         mass = datacard.rsplit('/',1)[0]
       	  #        mass = mass.rsplit('/',0)[0]
       	   #       mass = mass[mass.rindex('/')+1:]
-      	  		mass = os.getcwd().rsplit('/',1)[0]
+      	  		mass = os.getcwd().rsplit('/',1)[1]
+		#might have to put in a separate if statement for HybridNew method to get mass
 		else:
 			if len(self.args.datacard) > 1:
 				mass = []
@@ -506,19 +516,33 @@ class CombineToolBase:
             elif 'FitDiagnostics' in self.method:
 		output_file = 'fitDiagnostics'+name+'.root' 
                 cmssw = ''
+            elif 'HybridNew' in self.method:
+               # output_file = 'higgsCombine'+name+'.HybridNew.mH'+mass+'.'+seed+'.root'
+                cmssw = ''
 	    if self.make_sandbox:
                 self.sandbox_maker()
             print '>> condor job script will be %s' % outscriptname
-            outscript = open(outscriptname, "w")
-            connect_job_prefix = JOB_PREFIX_CONNECT % {
-              'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
-              'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
-              'PWD': os.environ['PWD'],
-              'FILE': datacard_file_all,
-              'PATH': datacard_path,
-              'SANDBOX_PATH': self.sandbox_path,
-              'SANDBOX': self.sandbox
-            }
+	    outscript = open(outscriptname, "w")
+            if os.environ['SCRAM_ARCH'] != "slc7_amd64_gcc700":
+            	connect_job_prefix = JOB_PREFIX_CONNECT % {
+            	  'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
+            	  'SCRAM_ARCH': "slc7_amd64_gcc700",
+            	  'PWD': os.environ['PWD'],
+            	  'FILE': datacard_file_all,
+            	  'PATH': datacard_path,
+            	  'SANDBOX_PATH': self.sandbox_path,
+            	  'SANDBOX': self.sandbox
+            	}
+	    else:
+            	connect_job_prefix = JOB_PREFIX_CONNECT % {
+            	  'CMSSW_VERSION': os.environ['CMSSW_VERSION'],
+            	  'SCRAM_ARCH': os.environ['SCRAM_ARCH'],
+            	  'PWD': os.environ['PWD'],
+            	  'FILE': datacard_file_all,
+            	  'PATH': datacard_path,
+            	  'SANDBOX_PATH': self.sandbox_path,
+            	  'SANDBOX': self.sandbox
+            	}
             outscript.write(connect_job_prefix)
             if 'AsymptoticLimits' in self.method: #copy fit input file to cmssw/CMSSW_10_6_5/src/ dir
                 if len(self.args.datacard) > 1: #do grid
@@ -543,7 +567,7 @@ class CombineToolBase:
             st = os.stat(outscriptname)
             os.chmod(outscriptname, st.st_mode | stat.S_IEXEC)
             subfile = open(subfilename, "w")
-            if 'T2W' in self.method:
+            if 'T2W' or 'HybridNew' in self.method:
 		datacard_path = ''
  	    condor_settings = CONNECT_TEMPLATE % {
               'CMSSW_VERSION': cmssw,
@@ -575,8 +599,11 @@ class CombineToolBase:
                 cmssw = ''
                 os.system("echo \"\nmv *fitDiagnostics*.root ../../../ \" >> "+str(outscriptname))
             if 'T2W' in self.method:
-	       cmssw = ''
-	       os.system("echo \"\nmv "+output_file+" ../../../../ \" >> "+str(outscriptname))
+                cmssw = ''
+                os.system("echo \"\nmv "+output_file+" ../../../../ \" >> "+str(outscriptname))
+            if 'HybridNew' in self.method:
+                cmssw = ''
+                os.system("echo \"\nmv higgsCombine*.root ../../../ \" >> "+str(outscriptname))
 	    run_command(self.dry_run, 'condor_submit %s' % (subfilename))
 
         if self.job_mode == 'crab3':
